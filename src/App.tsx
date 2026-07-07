@@ -14,6 +14,11 @@ import {
 const STORAGE_KEY = 'pfys.guest'
 const LAYOUT_KEY = 'pfys.layout'
 
+// Effective lookup source: 'auto' uses the Sheet once a URL is configured.
+const SHEET_MODE =
+  GUEST_LOOKUP === 'sheet' ||
+  (GUEST_LOOKUP === 'auto' && Boolean(APPS_SCRIPT_URL))
+
 const normalize = (s: string) => s.trim().toLowerCase().replace(/\s+/g, ' ')
 
 // Local mode: exact full-name match (names are unique on first+last).
@@ -32,7 +37,7 @@ export default function App() {
   }, [])
 
   const [guests, setGuests] = useState<Guest[]>([])
-  const [loaded, setLoaded] = useState(GUEST_LOOKUP === 'sheet')
+  const [loaded, setLoaded] = useState(SHEET_MODE)
   const [guest, setGuest] = useState<Guest | null>(null)
   const [first, setFirst] = useState('')
   const [last, setLast] = useState('')
@@ -55,7 +60,7 @@ export default function App() {
 
   // Local mode: load the bundled guest list once.
   useEffect(() => {
-    if (GUEST_LOOKUP !== 'local') return
+    if (SHEET_MODE) return
     fetch(`${import.meta.env.BASE_URL}guests.json`)
       .then((r) => r.json())
       .then((data: Guest[]) => setGuests(data))
@@ -90,10 +95,9 @@ export default function App() {
     setSearching(true)
     try {
       const fullName = `${f} ${l}`
-      const match =
-        GUEST_LOOKUP === 'sheet'
-          ? await remoteLookupExact(fullName)
-          : localExact(fullName, guests)
+      const match = SHEET_MODE
+        ? await remoteLookupExact(fullName)
+        : localExact(fullName, guests)
       if (match) {
         setGuest(match)
         localStorage.setItem(STORAGE_KEY, JSON.stringify(match))

@@ -41,12 +41,14 @@ tables, add/remove stage & dance floor. It's just coordinates on a canvas.
 4. At the top fill in:
    - `FOLDER_ID` — your Drive folder ID (for photos)
    - `SHEET_ID` — your guest-list Sheet ID from step 1
+   - `SHEET_NAME` — already set to `Guest Name for the App`; change only if you
+     rename the tab.
 5. **Deploy → New deployment → Web app**
    - Execute as: **Me**
    - Who has access: **Anyone**
 6. Copy the **Web App URL** and paste it into `src/config.ts`:
-   - `APPS_SCRIPT_URL = '...your url...'`
-   - `GUEST_LOOKUP = 'sheet'`  ← switches lookups to the Sheet
+   - `APPS_SCRIPT_URL = '...your url...'`  ← that's the only change needed;
+     `GUEST_LOOKUP` stays `'auto'` and switches to the Sheet automatically.
 
 Photos are saved as `GuestName_timestamp.jpg`. If you skip the Drive part the
 seat-finder still works; the photo button just won't appear.

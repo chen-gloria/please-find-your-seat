@@ -8,12 +8,12 @@
 export const APPS_SCRIPT_URL = ''
 
 // Where guest names live:
-//   'sheet' → looked up live from your private Google Sheet via Apps Script.
-//             Real guest names never touch this public repo. (Needs
-//             APPS_SCRIPT_URL set + SHEET_ID filled in Code.gs.)
-//   'local' → read from the bundled public/guests.json (fine for a demo, but
-//             those names would be public in this repo).
-export const GUEST_LOOKUP: 'sheet' | 'local' = 'local'
+//   'auto'  → use your Google Sheet as soon as APPS_SCRIPT_URL is set,
+//             otherwise fall back to the bundled demo list. (Recommended —
+//             just paste the URL above and you're done.)
+//   'sheet' → always use the Sheet (via Apps Script).
+//   'local' → always use the bundled public/guests.json demo list.
+export const GUEST_LOOKUP: 'auto' | 'sheet' | 'local' = 'auto'
 
 // Names shown on the welcome screen. Purely cosmetic.
 export const EVENT_TITLE = 'Please Find Your Seat'

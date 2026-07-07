@@ -21,11 +21,11 @@
 
 // ── EDIT THIS ──────────────────────────────────────────────
 var FOLDER_ID = 'PASTE_YOUR_DRIVE_FOLDER_ID_HERE'
-// Optional: to serve the guest list from a Google Sheet instead of the
-// bundled guests.json, put the Sheet ID here (else leave '').
-// Sheet must have a header row: name | table
-var SHEET_ID = ''
-var SHEET_NAME = 'Sheet1'
+// Guest list Google Sheet: put the Sheet ID from its URL here
+//   https://docs.google.com/spreadsheets/d/THIS_IS_THE_SHEET_ID/edit
+var SHEET_ID = 'PASTE_YOUR_SHEET_ID_HERE'
+// The exact TAB name that holds the name | table columns.
+var SHEET_NAME = 'Guest Name for the App'
 // ───────────────────────────────────────────────────────────
 
 function doPost(e) {
