@@ -1,6 +1,9 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import FloorPlan from './FloorPlan'
+import Admin from './Admin'
 import { uploadPhoto } from './photo'
+import { remoteLookupExact, getLayout, type Guest } from './api'
+import { DEFAULT_LAYOUT, type Layout } from './layout'
 import {
   APPS_SCRIPT_URL,
   EVENT_TITLE,
@@ -8,59 +11,49 @@ import {
   GUEST_LOOKUP,
 } from './config'
 
-type Guest = { name: string; table: string }
-
 const STORAGE_KEY = 'pfys.guest'
+const LAYOUT_KEY = 'pfys.layout'
 
-const normalize = (s: string) =>
-  s.trim().toLowerCase().replace(/\s+/g, ' ')
+const normalize = (s: string) => s.trim().toLowerCase().replace(/\s+/g, ' ')
 
-// Find a guest from a typed name. Tolerant: exact match first, then a
-// unique prefix/substring match (so "kenneth" finds "Kenneth Lo" if unique).
-function findGuest(query: string, guests: Guest[]): Guest | 'ambiguous' | null {
-  const q = normalize(query)
-  if (!q) return null
-
-  const exact = guests.find((g) => normalize(g.name) === q)
-  if (exact) return exact
-
-  const prefix = guests.filter((g) => normalize(g.name).startsWith(q))
-  if (prefix.length === 1) return prefix[0]
-  if (prefix.length > 1) return 'ambiguous'
-
-  const includes = guests.filter((g) => normalize(g.name).includes(q))
-  if (includes.length === 1) return includes[0]
-  if (includes.length > 1) return 'ambiguous'
-
-  return null
-}
-
-// Sheet mode: ask Apps Script for just this one name (never the full roster).
-async function remoteLookup(
-  query: string,
-): Promise<Guest | 'ambiguous' | null> {
-  const url = `${APPS_SCRIPT_URL}?name=${encodeURIComponent(query.trim())}`
-  const res = await fetch(url)
-  const data = await res.json()
-  if (data.ambiguous) return 'ambiguous'
-  if (!data.ok) return null
-  return { name: String(data.name), table: String(data.table) }
+// Local mode: exact full-name match (names are unique on first+last).
+function localExact(fullName: string, guests: Guest[]): Guest | null {
+  const q = normalize(fullName)
+  return guests.find((g) => normalize(g.name) === q) ?? null
 }
 
 export default function App() {
+  // ── tiny hash router so #admin opens the private builder ──
+  const [route, setRoute] = useState(window.location.hash)
+  useEffect(() => {
+    const onHash = () => setRoute(window.location.hash)
+    window.addEventListener('hashchange', onHash)
+    return () => window.removeEventListener('hashchange', onHash)
+  }, [])
+
   const [guests, setGuests] = useState<Guest[]>([])
   const [loaded, setLoaded] = useState(GUEST_LOOKUP === 'sheet')
   const [guest, setGuest] = useState<Guest | null>(null)
-  const [query, setQuery] = useState('')
+  const [first, setFirst] = useState('')
+  const [last, setLast] = useState('')
   const [searching, setSearching] = useState(false)
   const [error, setError] = useState('')
+  const [layout, setLayout] = useState<Layout>(() => {
+    try {
+      const cached = localStorage.getItem(LAYOUT_KEY)
+      if (cached) return JSON.parse(cached)
+    } catch {
+      /* ignore */
+    }
+    return DEFAULT_LAYOUT
+  })
   const [uploadState, setUploadState] = useState<
     'idle' | 'uploading' | 'done' | 'error'
   >('idle')
   const [uploadMsg, setUploadMsg] = useState('')
   const fileInputRef = useRef<HTMLInputElement>(null)
 
-  // Local mode only: load the bundled guest list once.
+  // Local mode: load the bundled guest list once.
   useEffect(() => {
     if (GUEST_LOOKUP !== 'local') return
     fetch(`${import.meta.env.BASE_URL}guests.json`)
@@ -68,6 +61,16 @@ export default function App() {
       .then((data: Guest[]) => setGuests(data))
       .catch(() => setGuests([]))
       .finally(() => setLoaded(true))
+  }, [])
+
+  // Refresh the floor-plan layout from the server (if configured).
+  useEffect(() => {
+    getLayout().then((l) => {
+      if (l) {
+        setLayout(l)
+        localStorage.setItem(LAYOUT_KEY, JSON.stringify(l))
+      }
+    })
   }, [])
 
   // Restore "logged in" guest from localStorage.
@@ -82,37 +85,52 @@ export default function App() {
     }
   }, [])
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
-    if (!query.trim() || searching) return
-    setError('')
+  // Run a lookup and, on a match, advance automatically.
+  const runLookup = async (f: string, l: string) => {
     setSearching(true)
     try {
-      const result =
+      const fullName = `${f} ${l}`
+      const match =
         GUEST_LOOKUP === 'sheet'
-          ? await remoteLookup(query)
-          : findGuest(query, guests)
-      if (result === 'ambiguous') {
-        setError('We found more than one match — please type your full name.')
-        return
+          ? await remoteLookupExact(fullName)
+          : localExact(fullName, guests)
+      if (match) {
+        setGuest(match)
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(match))
+        setError('')
+      } else {
+        setError("We can't find that name just yet — mind checking the spelling? 💛")
       }
-      if (!result) {
-        setError("Hmm, we couldn't find that name. Please check the spelling.")
-        return
-      }
-      setGuest(result)
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(result))
     } catch {
-      setError('Something went wrong looking that up. Please try again.')
+      setError('Something hiccuped looking that up. Please try once more.')
     } finally {
       setSearching(false)
     }
   }
 
+  // Auto-advance: whenever both names are filled, quietly check after a pause.
+  useEffect(() => {
+    setError('')
+    const f = first.trim()
+    const l = last.trim()
+    if (!f || !l || !loaded) return
+    const handle = setTimeout(() => runLookup(f, l), 500)
+    return () => clearTimeout(handle)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [first, last, loaded, guests])
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault()
+    const f = first.trim()
+    const l = last.trim()
+    if (f && l && loaded && !searching) runLookup(f, l)
+  }
+
   const handleSwitch = () => {
     localStorage.removeItem(STORAGE_KEY)
     setGuest(null)
-    setQuery('')
+    setFirst('')
+    setLast('')
     setError('')
     setUploadState('idle')
     setUploadMsg('')
@@ -137,12 +155,12 @@ export default function App() {
     }
   }
 
-  const activeTable = guest?.table ?? null
+  const greeting = useMemo(
+    () => (guest ? guest.name.split(' ')[0] : ''),
+    [guest],
+  )
 
-  const greeting = useMemo(() => {
-    if (!guest) return ''
-    return guest.name.split(' ')[0]
-  }, [guest])
+  if (route === '#admin') return <Admin />
 
   // ── Welcome / name-entry screen ────────────────────────────
   if (!guest) {
@@ -153,27 +171,35 @@ export default function App() {
           <h1 className="title">{EVENT_TITLE}</h1>
           {COUPLE_NAMES && <p className="couple">{COUPLE_NAMES}</p>}
           <p className="subtitle">
-            Enter your name and we'll show you to your table.
+            Enter your name and your table will appear automatically.
           </p>
           <form onSubmit={handleSubmit} className="name-form">
-            <input
-              className="name-input"
-              type="text"
-              placeholder="Your name"
-              value={query}
-              autoFocus
-              onChange={(e) => setQuery(e.target.value)}
-              aria-label="Your name"
-            />
-            <button
-              className="btn"
-              type="submit"
-              disabled={!loaded || searching}
-            >
-              {searching ? 'Finding…' : loaded ? 'Find My Seat' : 'Loading…'}
-            </button>
+            <div className="name-row">
+              <input
+                className="name-input"
+                type="text"
+                placeholder="First name"
+                value={first}
+                autoFocus
+                autoComplete="given-name"
+                onChange={(e) => setFirst(e.target.value)}
+                aria-label="First name"
+              />
+              <input
+                className="name-input"
+                type="text"
+                placeholder="Last name"
+                value={last}
+                autoComplete="family-name"
+                onChange={(e) => setLast(e.target.value)}
+                aria-label="Last name"
+              />
+            </div>
+            <p className={`status ${searching ? 'status-on' : ''}`}>
+              {searching ? 'Finding your seat…' : ' '}
+            </p>
           </form>
-          {error && <p className="error">{error}</p>}
+          {error && <p className="error fade-in">{error}</p>}
         </div>
       </div>
     )
@@ -190,7 +216,7 @@ export default function App() {
           <span className="table-badge-number">{guest.table}</span>
         </div>
 
-        <FloorPlan activeTable={activeTable} />
+        <FloorPlan layout={layout} activeTable={guest.table} />
 
         {APPS_SCRIPT_URL && (
           <div className="upload">
@@ -207,11 +233,7 @@ export default function App() {
               {uploadState === 'uploading' ? 'Uploading…' : '📷 Share a Photo'}
             </label>
             {uploadMsg && (
-              <p
-                className={
-                  uploadState === 'error' ? 'error' : 'upload-msg'
-                }
-              >
+              <p className={uploadState === 'error' ? 'error' : 'upload-msg'}>
                 {uploadMsg}
               </p>
             )}

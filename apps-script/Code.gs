@@ -31,23 +31,42 @@ var SHEET_NAME = 'Sheet1'
 function doPost(e) {
   try {
     var data = JSON.parse(e.postData.contents)
-    var folder = DriveApp.getFolderById(FOLDER_ID)
-
-    var mimeType = data.mimeType || 'image/jpeg'
-    var ext = (mimeType.split('/')[1] || 'jpg').replace('jpeg', 'jpg')
-    var safeName = String(data.guestName || 'guest')
-      .replace(/[^\w\-]+/g, '_')
-      .replace(/^_+|_+$/g, '')
-    var filename = safeName + '_' + Date.now() + '.' + ext
-
-    var bytes = Utilities.base64Decode(data.imageBase64)
-    var blob = Utilities.newBlob(bytes, mimeType, filename)
-    var file = folder.createFile(blob)
-
-    return jsonOut({ ok: true, id: file.getId(), name: filename })
+    if (data.action === 'saveLayout') return saveLayout(data)
+    return savePhoto(data)
   } catch (err) {
     return jsonOut({ ok: false, error: String(err) })
   }
+}
+
+function savePhoto(data) {
+  var folder = DriveApp.getFolderById(FOLDER_ID)
+  var mimeType = data.mimeType || 'image/jpeg'
+  var ext = (mimeType.split('/')[1] || 'jpg').replace('jpeg', 'jpg')
+  var safeName = String(data.guestName || 'guest')
+    .replace(/[^\w\-]+/g, '_')
+    .replace(/^_+|_+$/g, '')
+  var filename = safeName + '_' + Date.now() + '.' + ext
+
+  var bytes = Utilities.base64Decode(data.imageBase64)
+  var blob = Utilities.newBlob(bytes, mimeType, filename)
+  var file = folder.createFile(blob)
+  return jsonOut({ ok: true, id: file.getId(), name: filename })
+}
+
+/**
+ * Admin-only: save the floor-plan layout. Password is checked against a
+ * Script Property (never stored in this repo). Set it once in the Apps Script
+ * editor: Project Settings → Script Properties → ADMIN_PASSWORD = your-password
+ */
+function saveLayout(data) {
+  var props = PropertiesService.getScriptProperties()
+  var expected = props.getProperty('ADMIN_PASSWORD')
+  if (!expected)
+    return jsonOut({ ok: false, error: 'ADMIN_PASSWORD not set in Script Properties' })
+  if (String(data.password || '') !== expected)
+    return jsonOut({ ok: false, error: 'Wrong password' })
+  props.setProperty('LAYOUT_JSON', JSON.stringify(data.layout || {}))
+  return jsonOut({ ok: true })
 }
 
 /**
@@ -60,12 +79,20 @@ function doPost(e) {
  */
 function doGet(e) {
   try {
+    var params = (e && e.parameter) || {}
+
+    // Serve the floor-plan layout published from the admin page.
+    if (params.layout) {
+      var raw = PropertiesService.getScriptProperties().getProperty('LAYOUT_JSON')
+      return jsonOut({ ok: !!raw, layout: raw ? JSON.parse(raw) : null })
+    }
+
     if (!SHEET_ID) return jsonOut({ ok: false, error: 'No SHEET_ID configured' })
-    var name = e && e.parameter && e.parameter.name
+    var name = params.name
     if (!name) return jsonOut({ ok: true, ready: true }) // health check, no data leaked
 
     var guests = readGuests()
-    var res = matchGuest(name, guests)
+    var res = matchGuest(name, guests, params.exact)
     if (res === 'ambiguous') return jsonOut({ ok: false, ambiguous: true })
     if (!res) return jsonOut({ ok: false, notFound: true })
     return jsonOut({ ok: true, name: res.name, table: res.table })
@@ -88,8 +115,8 @@ function readGuests() {
   return guests
 }
 
-// Same tolerant matching as the frontend: exact → unique prefix → unique substring.
-function matchGuest(query, guests) {
+// Exact match, then (unless exactOnly) unique prefix → unique substring.
+function matchGuest(query, guests, exactOnly) {
   var q = String(query).trim().toLowerCase().replace(/\s+/g, ' ')
   if (!q) return null
   var norm = function (g) {
@@ -98,6 +125,7 @@ function matchGuest(query, guests) {
 
   var exact = guests.filter(function (g) { return norm(g) === q })
   if (exact.length) return exact[0]
+  if (exactOnly) return null
 
   var prefix = guests.filter(function (g) { return norm(g).indexOf(q) === 0 })
   if (prefix.length === 1) return prefix[0]

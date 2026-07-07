@@ -58,9 +58,31 @@ seat-finder still works; the photo button just won't appear.
 Commit `src/config.ts` and push to `main` — GitHub Actions rebuilds and
 redeploys automatically. (Editing the Sheet does **not** need a redeploy.)
 
-### 5. Make the QR code
+### 5. Set an admin password (for the floor-plan builder)
+In the Apps Script editor: **Project Settings → Script Properties → Add** a
+property `ADMIN_PASSWORD` = whatever password you like. This lives on Google's
+side, never in this repo.
+
+### 6. Make the QR code
 Point a QR generator at your live URL:
 `https://chen-gloria.github.io/please-find-your-seat/`
+
+---
+
+## Admin: build the floor plan (no code)
+Open the private builder by adding `#admin` to your site URL:
+`https://chen-gloria.github.io/please-find-your-seat/#admin`
+
+- Set how many tables sit in each row (front row first). All tables face the
+  top (front) of the room.
+- Rename each table so the labels match the `table` column in your Sheet.
+- See a live preview, then **Publish to guests** (needs your `ADMIN_PASSWORD`).
+  Everyone loads the new plan on their next visit — no redeploy.
+- No Apps Script yet? Use **Copy JSON** and paste it into `DEFAULT_LAYOUT` in
+  `src/layout.ts` instead.
+
+The `#admin` link is not shown anywhere to guests; only people who know the URL
+and the password can publish.
 
 ---
 
@@ -77,8 +99,8 @@ straight to their table. A **"Not you? Switch guest"** link clears it (handy
 when a couple shares one phone).
 
 ## Notes
-- Names are matched tolerantly: exact first, then a unique prefix/substring
-  (so "kenneth" finds "Kenneth Lo" if unique). Ambiguous input asks for the
-  full name.
+- Guests enter **First** and **Last** name separately. The moment both match a
+  guest exactly, the app advances automatically; if not, a gentle red note
+  appears. (Exact match avoids advancing on a half-typed name.)
 - Photos are downscaled in the browser before upload to keep things fast.
 - **Custom domain?** Change `base` in `vite.config.ts` to `'/'`.
