@@ -50,7 +50,39 @@ function savePhoto(data) {
   var bytes = Utilities.base64Decode(data.imageBase64)
   var blob = Utilities.newBlob(bytes, mimeType, filename)
   var file = folder.createFile(blob)
+
+  // Make it viewable by link so the gallery's CDN thumbnail URLs load.
+  try {
+    file.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW)
+  } catch (e) {
+    /* org policy may block link sharing; upload still succeeds */
+  }
+  // Bust the gallery cache so the new photo shows up promptly.
+  CacheService.getScriptCache().remove('photos')
+
   return jsonOut({ ok: true, id: file.getId(), name: filename })
+}
+
+// List image files in the folder (id + name), newest first. Cached 30s so a
+// busy photo wall doesn't re-scan Drive on every refresh.
+function listPhotos() {
+  var cache = CacheService.getScriptCache()
+  var hit = cache.get('photos')
+  if (hit) return ContentService.createTextOutput(hit).setMimeType(ContentService.MimeType.JSON)
+
+  var it = DriveApp.getFolderById(FOLDER_ID).getFiles()
+  var arr = []
+  while (it.hasNext()) {
+    var f = it.next()
+    if (String(f.getMimeType()).indexOf('image/') !== 0) continue
+    arr.push({ id: f.getId(), name: f.getName(), t: f.getDateCreated().getTime() })
+    if (arr.length >= 1000) break
+  }
+  arr.sort(function (a, b) { return b.t - a.t })
+
+  var out = JSON.stringify({ ok: true, photos: arr })
+  cache.put('photos', out, 30)
+  return ContentService.createTextOutput(out).setMimeType(ContentService.MimeType.JSON)
 }
 
 /**
@@ -86,6 +118,9 @@ function doGet(e) {
       var raw = PropertiesService.getScriptProperties().getProperty('LAYOUT_JSON')
       return jsonOut({ ok: !!raw, layout: raw ? JSON.parse(raw) : null })
     }
+
+    // List photos for the gallery.
+    if (params.photos) return listPhotos()
 
     if (!SHEET_ID) return jsonOut({ ok: false, error: 'No SHEET_ID configured' })
     var name = params.name

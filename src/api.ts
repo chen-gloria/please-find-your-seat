@@ -43,3 +43,23 @@ export async function saveLayout(
   const data = await res.json().catch(() => ({ ok: false }))
   return data
 }
+
+// ── Photo gallery ────────────────────────────────────────────
+export type Photo = { id: string; name: string }
+
+export async function listPhotos(): Promise<Photo[]> {
+  if (!APPS_SCRIPT_URL) return []
+  try {
+    const res = await fetch(`${APPS_SCRIPT_URL}?photos=1`)
+    const data = await res.json()
+    return Array.isArray(data.photos) ? (data.photos as Photo[]) : []
+  } catch {
+    return []
+  }
+}
+
+// A CDN-resized thumbnail served from Google's image servers — tiny + fast.
+// `size` is the width in px (e.g. 400 for the grid, 1600 for the lightbox).
+export function photoUrl(id: string, size: number): string {
+  return `https://lh3.googleusercontent.com/d/${id}=w${size}`
+}

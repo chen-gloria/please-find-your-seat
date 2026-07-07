@@ -22,3 +22,7 @@ export const COUPLE_NAMES = '' // e.g. 'Kenneth & Gloria' — shown under the ti
 
 // Max pixel dimension photos are resized to before upload (keeps uploads fast).
 export const PHOTO_MAX_DIMENSION = 1600
+
+// Show guests a "View the photo wall" link on their table screen (opens the
+// #gallery page). Set false to keep the gallery private/unlinked.
+export const SHOW_GALLERY = true

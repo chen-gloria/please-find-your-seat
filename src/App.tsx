@@ -1,7 +1,8 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import FloorPlan from './FloorPlan'
 import Admin from './Admin'
-import { uploadPhoto } from './photo'
+import Gallery from './Gallery'
+import PhotoUploader from './PhotoUploader'
 import { remoteLookupExact, getLayout, type Guest } from './api'
 import { DEFAULT_LAYOUT, type Layout } from './layout'
 import {
@@ -9,6 +10,7 @@ import {
   EVENT_TITLE,
   COUPLE_NAMES,
   GUEST_LOOKUP,
+  SHOW_GALLERY,
 } from './config'
 
 const STORAGE_KEY = 'pfys.guest'
@@ -52,11 +54,6 @@ export default function App() {
     }
     return DEFAULT_LAYOUT
   })
-  const [uploadState, setUploadState] = useState<
-    'idle' | 'uploading' | 'done' | 'error'
-  >('idle')
-  const [uploadMsg, setUploadMsg] = useState('')
-  const fileInputRef = useRef<HTMLInputElement>(null)
 
   // Local mode: load the bundled guest list once.
   useEffect(() => {
@@ -136,27 +133,6 @@ export default function App() {
     setFirst('')
     setLast('')
     setError('')
-    setUploadState('idle')
-    setUploadMsg('')
-  }
-
-  const handleFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0]
-    if (!file || !guest) return
-    setUploadState('uploading')
-    setUploadMsg('Uploading your photo…')
-    try {
-      await uploadPhoto(file, guest.name)
-      setUploadState('done')
-      setUploadMsg('Thank you! Your photo has been shared 💛')
-    } catch (err) {
-      setUploadState('error')
-      setUploadMsg(
-        err instanceof Error ? err.message : 'Upload failed — please try again.',
-      )
-    } finally {
-      if (fileInputRef.current) fileInputRef.current.value = ''
-    }
   }
 
   const greeting = useMemo(
@@ -165,6 +141,7 @@ export default function App() {
   )
 
   if (route === '#admin') return <Admin />
+  if (route === '#gallery') return <Gallery />
 
   // ── Welcome / name-entry screen ────────────────────────────
   if (!guest) {
@@ -224,24 +201,14 @@ export default function App() {
 
         {APPS_SCRIPT_URL && (
           <div className="upload">
-            <input
-              ref={fileInputRef}
-              type="file"
-              accept="image/*"
-              capture="environment"
-              className="visually-hidden"
-              id="photo-input"
-              onChange={handleFile}
-            />
-            <label htmlFor="photo-input" className="btn btn-secondary">
-              {uploadState === 'uploading' ? 'Uploading…' : '📷 Share a Photo'}
-            </label>
-            {uploadMsg && (
-              <p className={uploadState === 'error' ? 'error' : 'upload-msg'}>
-                {uploadMsg}
-              </p>
-            )}
+            <PhotoUploader guestName={guest.name} />
           </div>
+        )}
+
+        {APPS_SCRIPT_URL && SHOW_GALLERY && (
+          <a className="link-btn gallery-link" href="#gallery">
+            📸 View the photo wall
+          </a>
         )}
 
         <button className="link-btn" onClick={handleSwitch}>
