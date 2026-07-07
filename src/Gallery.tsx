@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { listPhotos, photoUrl, type Photo } from './api'
+import { listPhotos, photoUrl, photoUrlAlt, type Photo } from './api'
 import { EVENT_TITLE } from './config'
 
 export default function Gallery() {
@@ -53,6 +53,13 @@ export default function Gallery() {
               alt=""
               loading="lazy"
               decoding="async"
+              onError={(e) => {
+                const el = e.currentTarget
+                if (!el.dataset.fb) {
+                  el.dataset.fb = '1'
+                  el.src = photoUrlAlt(p.id, 400)
+                }
+              }}
             />
           </button>
         ))}
@@ -79,6 +86,13 @@ export default function Gallery() {
             src={photoUrl(photos[active].id, 1600)}
             alt=""
             onClick={(e) => e.stopPropagation()}
+            onError={(e) => {
+              const el = e.currentTarget
+              if (!el.dataset.fb) {
+                el.dataset.fb = '1'
+                el.src = photoUrlAlt(photos[active].id, 1600)
+              }
+            }}
           />
           {active < photos.length - 1 && (
             <button

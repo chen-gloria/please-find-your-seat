@@ -63,3 +63,9 @@ export async function listPhotos(): Promise<Photo[]> {
 export function photoUrl(id: string, size: number): string {
   return `https://lh3.googleusercontent.com/d/${id}=w${size}`
 }
+
+// Alternate thumbnail host, used as an automatic <img> fallback if the
+// primary one fails to load in a given browser.
+export function photoUrlAlt(id: string, size: number): string {
+  return `https://drive.google.com/thumbnail?id=${id}&sz=w${size}`
+}
