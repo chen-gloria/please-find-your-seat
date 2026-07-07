@@ -1,0 +1,18 @@
+[
+  { "name": "Kenneth Lo", "table": "1" },
+  { "name": "Gloria Chen", "table": "1" },
+  { "name": "Emily Wong", "table": "2" },
+  { "name": "David Tran", "table": "2" },
+  { "name": "Sophie Nguyen", "table": "3" },
+  { "name": "James Park", "table": "3" },
+  { "name": "Olivia Smith", "table": "4" },
+  { "name": "William Chen", "table": "4" },
+  { "name": "Grace Liu", "table": "5" },
+  { "name": "Daniel Kim", "table": "5" },
+  { "name": "Chloe Nguyen", "table": "6" },
+  { "name": "Ethan Lee", "table": "6" },
+  { "name": "Mia Zhang", "table": "7" },
+  { "name": "Lucas Wang", "table": "7" },
+  { "name": "Ava Ho", "table": "8" },
+  { "name": "Noah Tan", "table": "8" }
+]
