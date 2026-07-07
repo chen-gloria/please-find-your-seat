@@ -1,7 +1,12 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import FloorPlan from './FloorPlan'
 import { uploadPhoto } from './photo'
-import { APPS_SCRIPT_URL, EVENT_TITLE, COUPLE_NAMES } from './config'
+import {
+  APPS_SCRIPT_URL,
+  EVENT_TITLE,
+  COUPLE_NAMES,
+  GUEST_LOOKUP,
+} from './config'
 
 type Guest = { name: string; table: string }
 
@@ -30,11 +35,24 @@ function findGuest(query: string, guests: Guest[]): Guest | 'ambiguous' | null {
   return null
 }
 
+// Sheet mode: ask Apps Script for just this one name (never the full roster).
+async function remoteLookup(
+  query: string,
+): Promise<Guest | 'ambiguous' | null> {
+  const url = `${APPS_SCRIPT_URL}?name=${encodeURIComponent(query.trim())}`
+  const res = await fetch(url)
+  const data = await res.json()
+  if (data.ambiguous) return 'ambiguous'
+  if (!data.ok) return null
+  return { name: String(data.name), table: String(data.table) }
+}
+
 export default function App() {
   const [guests, setGuests] = useState<Guest[]>([])
-  const [loaded, setLoaded] = useState(false)
+  const [loaded, setLoaded] = useState(GUEST_LOOKUP === 'sheet')
   const [guest, setGuest] = useState<Guest | null>(null)
   const [query, setQuery] = useState('')
+  const [searching, setSearching] = useState(false)
   const [error, setError] = useState('')
   const [uploadState, setUploadState] = useState<
     'idle' | 'uploading' | 'done' | 'error'
@@ -42,8 +60,9 @@ export default function App() {
   const [uploadMsg, setUploadMsg] = useState('')
   const fileInputRef = useRef<HTMLInputElement>(null)
 
-  // Load the guest list (bundled static file).
+  // Local mode only: load the bundled guest list once.
   useEffect(() => {
+    if (GUEST_LOOKUP !== 'local') return
     fetch(`${import.meta.env.BASE_URL}guests.json`)
       .then((r) => r.json())
       .then((data: Guest[]) => setGuests(data))
@@ -63,20 +82,31 @@ export default function App() {
     }
   }, [])
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
+    if (!query.trim() || searching) return
     setError('')
-    const result = findGuest(query, guests)
-    if (result === 'ambiguous') {
-      setError('We found more than one match — please type your full name.')
-      return
+    setSearching(true)
+    try {
+      const result =
+        GUEST_LOOKUP === 'sheet'
+          ? await remoteLookup(query)
+          : findGuest(query, guests)
+      if (result === 'ambiguous') {
+        setError('We found more than one match — please type your full name.')
+        return
+      }
+      if (!result) {
+        setError("Hmm, we couldn't find that name. Please check the spelling.")
+        return
+      }
+      setGuest(result)
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(result))
+    } catch {
+      setError('Something went wrong looking that up. Please try again.')
+    } finally {
+      setSearching(false)
     }
-    if (!result) {
-      setError("Hmm, we couldn't find that name. Please check the spelling.")
-      return
-    }
-    setGuest(result)
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(result))
   }
 
   const handleSwitch = () => {
@@ -135,8 +165,12 @@ export default function App() {
               onChange={(e) => setQuery(e.target.value)}
               aria-label="Your name"
             />
-            <button className="btn" type="submit" disabled={!loaded}>
-              {loaded ? 'Find My Seat' : 'Loading…'}
+            <button
+              className="btn"
+              type="submit"
+              disabled={!loaded || searching}
+            >
+              {searching ? 'Finding…' : loaded ? 'Find My Seat' : 'Loading…'}
             </button>
           </form>
           {error && <p className="error">{error}</p>}

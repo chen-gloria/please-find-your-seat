@@ -1,18 +1,10 @@
 [
-  { "name": "Kenneth Lo", "table": "1" },
-  { "name": "Gloria Chen", "table": "1" },
-  { "name": "Emily Wong", "table": "2" },
-  { "name": "David Tran", "table": "2" },
-  { "name": "Sophie Nguyen", "table": "3" },
-  { "name": "James Park", "table": "3" },
-  { "name": "Olivia Smith", "table": "4" },
-  { "name": "William Chen", "table": "4" },
-  { "name": "Grace Liu", "table": "5" },
-  { "name": "Daniel Kim", "table": "5" },
-  { "name": "Chloe Nguyen", "table": "6" },
-  { "name": "Ethan Lee", "table": "6" },
-  { "name": "Mia Zhang", "table": "7" },
-  { "name": "Lucas Wang", "table": "7" },
-  { "name": "Ava Ho", "table": "8" },
-  { "name": "Noah Tan", "table": "8" }
+  { "name": "Sample Guest One", "table": "1" },
+  { "name": "Sample Guest Two", "table": "2" },
+  { "name": "Sample Guest Three", "table": "3" },
+  { "name": "Sample Guest Four", "table": "4" },
+  { "name": "Sample Guest Five", "table": "5" },
+  { "name": "Sample Guest Six", "table": "6" },
+  { "name": "Sample Guest Seven", "table": "7" },
+  { "name": "Sample Guest Eight", "table": "8" }
 ]

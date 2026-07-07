@@ -51,33 +51,63 @@ function doPost(e) {
 }
 
 /**
- * Optional seat lookup from a Google Sheet.
- *   GET ...?name=Kenneth%20Lo   → { ok, table }
- *   GET ...                     → { ok, guests: [{name, table}, ...] }
- * Only used if you switch the frontend to fetch from here.
+ * Seat lookup from a Google Sheet — keeps guest names OUT of the public repo.
+ *   GET ...?name=Kenneth%20Lo   → { ok:true, name, table }
+ *                               → { ok:false, ambiguous:true }  (type full name)
+ *                               → { ok:false, notFound:true }
+ * For privacy we NEVER return the full roster — only the single match for the
+ * name that was typed.
  */
 function doGet(e) {
   try {
     if (!SHEET_ID) return jsonOut({ ok: false, error: 'No SHEET_ID configured' })
-    var sheet = SpreadsheetApp.openById(SHEET_ID).getSheetByName(SHEET_NAME)
-    var rows = sheet.getDataRange().getValues()
-    var guests = []
-    for (var i = 1; i < rows.length; i++) {
-      if (!rows[i][0]) continue
-      guests.push({ name: String(rows[i][0]).trim(), table: String(rows[i][1]).trim() })
-    }
-    var q = e && e.parameter && e.parameter.name
-    if (q) {
-      var norm = q.trim().toLowerCase()
-      var hit = guests.filter(function (g) {
-        return g.name.toLowerCase() === norm
-      })[0]
-      return jsonOut({ ok: !!hit, table: hit ? hit.table : null })
-    }
-    return jsonOut({ ok: true, guests: guests })
+    var name = e && e.parameter && e.parameter.name
+    if (!name) return jsonOut({ ok: true, ready: true }) // health check, no data leaked
+
+    var guests = readGuests()
+    var res = matchGuest(name, guests)
+    if (res === 'ambiguous') return jsonOut({ ok: false, ambiguous: true })
+    if (!res) return jsonOut({ ok: false, notFound: true })
+    return jsonOut({ ok: true, name: res.name, table: res.table })
   } catch (err) {
     return jsonOut({ ok: false, error: String(err) })
   }
+}
+
+function readGuests() {
+  var sheet = SpreadsheetApp.openById(SHEET_ID).getSheetByName(SHEET_NAME)
+  var rows = sheet.getDataRange().getValues()
+  var guests = []
+  for (var i = 1; i < rows.length; i++) {
+    if (!rows[i][0]) continue
+    guests.push({
+      name: String(rows[i][0]).trim(),
+      table: String(rows[i][1]).trim(),
+    })
+  }
+  return guests
+}
+
+// Same tolerant matching as the frontend: exact → unique prefix → unique substring.
+function matchGuest(query, guests) {
+  var q = String(query).trim().toLowerCase().replace(/\s+/g, ' ')
+  if (!q) return null
+  var norm = function (g) {
+    return g.name.toLowerCase().replace(/\s+/g, ' ')
+  }
+
+  var exact = guests.filter(function (g) { return norm(g) === q })
+  if (exact.length) return exact[0]
+
+  var prefix = guests.filter(function (g) { return norm(g).indexOf(q) === 0 })
+  if (prefix.length === 1) return prefix[0]
+  if (prefix.length > 1) return 'ambiguous'
+
+  var incl = guests.filter(function (g) { return norm(g).indexOf(q) !== -1 })
+  if (incl.length === 1) return incl[0]
+  if (incl.length > 1) return 'ambiguous'
+
+  return null
 }
 
 function jsonOut(obj) {
