@@ -1,17 +1,39 @@
 import { useEffect, useState } from 'react'
-import { listPhotos, photoUrl, photoUrlAlt, type Photo } from './api'
+import { listPhotos, photoUrl, photoUrlAlt, type Guest, type Photo } from './api'
 import { EVENT_TITLE } from './config'
 
-export default function Gallery() {
+export default function Gallery({ guest }: { guest: Guest | null }) {
   const [photos, setPhotos] = useState<Photo[]>([])
   const [loading, setLoading] = useState(true)
   const [active, setActive] = useState<number | null>(null)
 
   useEffect(() => {
-    listPhotos()
+    if (!guest) {
+      setLoading(false)
+      return
+    }
+    listPhotos(guest.name)
       .then(setPhotos)
       .finally(() => setLoading(false))
-  }, [])
+  }, [guest])
+
+  // Only guests who found their seat can view the wall.
+  if (!guest) {
+    return (
+      <div className="page">
+        <div className="card fade-in" style={{ textAlign: 'center' }}>
+          <p className="eyebrow">Photo Wall</p>
+          <h1 className="title">Just one step</h1>
+          <p className="subtitle">
+            Please find your seat first, then you can view everyone's photos.
+          </p>
+          <a className="btn" href="#" style={{ marginTop: 22, display: 'inline-block' }}>
+            Find my seat
+          </a>
+        </div>
+      </div>
+    )
+  }
 
   // Keyboard nav in the lightbox
   useEffect(() => {

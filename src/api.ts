@@ -47,10 +47,14 @@ export async function saveLayout(
 // ── Photo gallery ────────────────────────────────────────────
 export type Photo = { id: string; name: string }
 
-export async function listPhotos(): Promise<Photo[]> {
+// Requires the viewer's (matched) guest name — the backend only returns the
+// list to a name that exists in the guest sheet.
+export async function listPhotos(guestName: string): Promise<Photo[]> {
   if (!APPS_SCRIPT_URL) return []
   try {
-    const res = await fetch(`${APPS_SCRIPT_URL}?photos=1`)
+    const res = await fetch(
+      `${APPS_SCRIPT_URL}?photos=1&name=${encodeURIComponent(guestName)}`,
+    )
     const data = await res.json()
     return Array.isArray(data.photos) ? (data.photos as Photo[]) : []
   } catch {

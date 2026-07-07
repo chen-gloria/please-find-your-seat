@@ -40,7 +40,15 @@ export default function App() {
 
   const [guests, setGuests] = useState<Guest[]>([])
   const [loaded, setLoaded] = useState(SHEET_MODE)
-  const [guest, setGuest] = useState<Guest | null>(null)
+  const [guest, setGuest] = useState<Guest | null>(() => {
+    try {
+      const raw = localStorage.getItem(STORAGE_KEY)
+      if (raw) return JSON.parse(raw)
+    } catch {
+      /* ignore corrupt value */
+    }
+    return null
+  })
   const [first, setFirst] = useState('')
   const [last, setLast] = useState('')
   const [searching, setSearching] = useState(false)
@@ -73,18 +81,6 @@ export default function App() {
         localStorage.setItem(LAYOUT_KEY, JSON.stringify(l))
       }
     })
-  }, [])
-
-  // Restore "logged in" guest from localStorage.
-  useEffect(() => {
-    const raw = localStorage.getItem(STORAGE_KEY)
-    if (raw) {
-      try {
-        setGuest(JSON.parse(raw))
-      } catch {
-        /* ignore corrupt value */
-      }
-    }
   }, [])
 
   // Run a lookup and, on a match, advance automatically.
@@ -141,7 +137,7 @@ export default function App() {
   )
 
   if (route === '#admin') return <Admin />
-  if (route === '#gallery') return <Gallery />
+  if (route === '#gallery') return <Gallery guest={guest} />
 
   // ── Welcome / name-entry screen ────────────────────────────
   if (!guest) {

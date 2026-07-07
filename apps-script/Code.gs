@@ -65,7 +65,15 @@ function savePhoto(data) {
 
 // List image files in the folder (id + name), newest first. Cached 30s so a
 // busy photo wall doesn't re-scan Drive on every refresh.
-function listPhotos() {
+// Gated: when a guest sheet is configured, the caller must pass a name that
+// exists in it — so only guests who found their seat can load the wall.
+function listPhotos(name) {
+  if (SHEET_ID) {
+    if (!name || matchGuest(name, readGuests(), true) === null) {
+      return jsonOut({ ok: false, error: 'unauthorized' })
+    }
+  }
+
   var cache = CacheService.getScriptCache()
   var hit = cache.get('photos')
   if (hit) return ContentService.createTextOutput(hit).setMimeType(ContentService.MimeType.JSON)
@@ -119,8 +127,8 @@ function doGet(e) {
       return jsonOut({ ok: !!raw, layout: raw ? JSON.parse(raw) : null })
     }
 
-    // List photos for the gallery.
-    if (params.photos) return listPhotos()
+    // List photos for the gallery (only for a valid guest name).
+    if (params.photos) return listPhotos(params.name)
 
     if (!SHEET_ID) return jsonOut({ ok: false, error: 'No SHEET_ID configured' })
     var name = params.name
