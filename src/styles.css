@@ -584,8 +584,12 @@ body {
 }
 
 /* ── Gallery / photo wall ──────────────────── */
-.gallery-link {
-  margin-top: 18px;
+.gallery-btn {
+  display: block;
+  width: 100%;
+  margin-top: 14px;
+  text-align: center;
+  text-decoration: none;
 }
 .gallery {
   max-width: 1100px;

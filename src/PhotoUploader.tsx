@@ -56,7 +56,11 @@ export default function PhotoUploader({ guestName }: { guestName: string }) {
     setUploading(false)
     if (failed === 0) {
       setMsgKind('ok')
-      setMsg('Thank you! Your photos have been shared 💛')
+      setMsg('Thank you! Taking you to the photo wall…')
+      // Auto-open the gallery so guests see their photos land on the wall.
+      window.setTimeout(() => {
+        window.location.hash = 'gallery'
+      }, 900)
     } else {
       setMsgKind('err')
       setMsg(`Shared with ${failed} that didn't go through — please retry those.`)

@@ -202,8 +202,8 @@ export default function App() {
         )}
 
         {APPS_SCRIPT_URL && SHOW_GALLERY && (
-          <a className="link-btn gallery-link" href="#gallery">
-            📸 View the photo wall
+          <a className="btn btn-ghost gallery-btn" href="#gallery">
+            📸 View the Photo Wall
           </a>
         )}
 
