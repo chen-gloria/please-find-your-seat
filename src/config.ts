@@ -5,7 +5,8 @@
 // Paste your Google Apps Script Web App URL here after you deploy it
 // (see /apps-script/Code.gs and the README). Used for BOTH photo upload and
 // (when GUEST_LOOKUP is 'sheet') the seat lookup.
-export const APPS_SCRIPT_URL = ''
+export const APPS_SCRIPT_URL =
+  'https://script.google.com/macros/s/AKfycbyQSdU_jr9jF1h-OnMkLe2H4GZoTmHIIYjhwSYqnUCixdoWHV-tFx6IOVxJSda_-CMo0w/exec'
 
 // Where guest names live:
 //   'auto'  → use your Google Sheet as soon as APPS_SCRIPT_URL is set,
